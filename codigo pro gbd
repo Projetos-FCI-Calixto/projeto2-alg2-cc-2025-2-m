@@ -1,0 +1,186 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+typedef struct {
+    int width;
+    int height;
+    int **pixels;
+} Image;
+
+typedef struct {
+    char *code;
+    int length;
+    int capacity;
+} CodeBuffer;
+
+Image* create_image(int width, int height) {
+    Image *img = (Image*)malloc(sizeof(Image));
+    img->width = width;
+    img->height = height;
+    
+    img->pixels = (int**)malloc(height * sizeof(int*));
+    for (int i = 0; i < height; i++) {
+        img->pixels[i] = (int*)malloc(width * sizeof(int));
+    }
+    
+    return img;
+}
+
+void free_image(Image *img) {
+    if (img == NULL) return;
+    
+    for (int i = 0; i < img->height; i++) {
+        free(img->pixels[i]);
+    }
+    free(img->pixels);
+    free(img);
+}
+
+Image* read_manual_input() {
+    int width, height;
+    
+    printf("=== Codificador de Imagens Binarias ===\n\n");
+    printf("Informe a largura da imagem: ");
+    scanf("%d", &width);
+    printf("Informe a altura da imagem: ");
+    scanf("%d", &height);
+    
+    if (width <= 0 || height <= 0 || width > 1024 || height > 768) {
+        printf("Erro: Dimensoes invalidas. Use valores entre 1x1 e 1024x768\n");
+        return NULL;
+    }
+    
+    Image *img = create_image(width, height);
+    
+    printf("\nInforme os pixels (0 para branco, 1 para preto):\n");
+    for (int i = 0; i < height; i++) {
+        printf("Linha %d: ", i + 1);
+        for (int j = 0; j < width; j++) {
+            int pixel;
+            scanf("%d", &pixel);
+            if (pixel != 0 && pixel != 1) {
+                printf("Erro: Pixel deve ser 0 ou 1\n");
+                free_image(img);
+                return NULL;
+            }
+            img->pixels[i][j] = pixel;
+        }
+    }
+    
+    return img;
+}
+
+CodeBuffer* create_code_buffer() {
+    CodeBuffer *buffer = (CodeBuffer*)malloc(sizeof(CodeBuffer));
+    buffer->capacity = 64;
+    buffer->length = 0;
+    buffer->code = (char*)malloc(buffer->capacity * sizeof(char));
+    buffer->code[0] = '\0';
+    return buffer;
+}
+
+void free_code_buffer(CodeBuffer *buffer) {
+    if (buffer) {
+        free(buffer->code);
+        free(buffer);
+    }
+}
+
+void append_to_buffer(CodeBuffer *buffer, char c) {
+    if (buffer->length + 2 >= buffer->capacity) {
+        buffer->capacity *= 2;
+        buffer->code = (char*)realloc(buffer->code, buffer->capacity * sizeof(char));
+    }
+    buffer->code[buffer->length++] = c;
+    buffer->code[buffer->length] = '\0';
+}
+
+int is_uniform(const Image *img, int start_x, int start_y, int width, int height) {
+    if (width <= 0 || height <= 0) return 1;
+    
+    int first_pixel = img->pixels[start_y][start_x];
+    
+    for (int i = start_y; i < start_y + height; i++) {
+        for (int j = start_x; j < start_x + width; j++) {
+            if (img->pixels[i][j] != first_pixel) {
+                return 0;
+            }
+        }
+    }
+    return 1;
+}
+
+void encode_region(const Image *img, int start_x, int start_y, int width, int height, CodeBuffer *buffer) {
+    if (width <= 0 || height <= 0) return;
+    
+    if (is_uniform(img, start_x, start_y, width, height)) {
+        char code = img->pixels[start_y][start_x] ? 'P' : 'B';
+        append_to_buffer(buffer, code);
+        return;
+    }
+    
+    append_to_buffer(buffer, 'X');
+    
+    int left_width = (width + 1) / 2;
+    int right_width = width - left_width;
+    int top_height = (height + 1) / 2;
+    int bottom_height = height - top_height;
+    
+    if (top_height > 0 && left_width > 0) {
+        encode_region(img, start_x, start_y, left_width, top_height, buffer);
+    }
+    
+    if (top_height > 0 && right_width > 0) {
+        encode_region(img, start_x + left_width, start_y, right_width, top_height, buffer);
+    }
+    
+    if (bottom_height > 0 && left_width > 0) {
+        encode_region(img, start_x, start_y + top_height, left_width, bottom_height, buffer);
+    }
+    
+    if (bottom_height > 0 && right_width > 0) {
+        encode_region(img, start_x + left_width, start_y + top_height, right_width, bottom_height, buffer);
+    }
+}
+
+char* encode_image(const Image *img) {
+    if (!img || img->width <= 0 || img->height <= 0) {
+        return NULL;
+    }
+    
+    CodeBuffer *buffer = create_code_buffer();
+    encode_region(img, 0, 0, img->width, img->height, buffer);
+    
+    char *result = strdup(buffer->code);
+    free_code_buffer(buffer);
+    return result;
+}
+
+int main() {
+    printf("=== CODIFICADOR DE IMAGENS BINARIAS ===\n\n");
+    
+    Image *image = read_manual_input();
+    
+    if (!image) {
+        printf("Erro: Nao foi possivel carregar a imagem\n");
+        system("pause");
+        return 1;
+    }
+    
+    char *code = encode_image(image);
+    if (code) {
+        printf("\n✅ CODIGO GERADO: %s\n", code);
+        free(code);
+    } else {
+        printf("\n❌ Erro na codificacao\n");
+    }
+    
+    free_image(image);
+    
+    printf("\nPressione Enter para sair...");
+    getchar();
+    getchar();
+    
+    return 0;
+}
