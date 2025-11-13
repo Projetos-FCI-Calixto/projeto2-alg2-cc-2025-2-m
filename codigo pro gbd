@@ -40,7 +40,7 @@ void free_image(Image *img) {
 Image* read_manual_input() {
     int width, height;
     
-    printf("=== Codificador de Imagens Binarias ===\n\n");
+    printf("=== CODIFICADOR DE IMAGENS BINARIAS ===\n\n");
     printf("Informe a largura da imagem: ");
     scanf("%d", &width);
     printf("Informe a altura da imagem: ");
@@ -53,7 +53,7 @@ Image* read_manual_input() {
     
     Image *img = create_image(width, height);
     
-    printf("\nInforme os pixels (0 para branco, 1 para preto):\n");
+    printf("\nInforme os pixels (0 para branco, 1 para preto), linha por linha:\n");
     for (int i = 0; i < height; i++) {
         printf("Linha %d: ", i + 1);
         for (int j = 0; j < width; j++) {
@@ -122,23 +122,29 @@ void encode_region(const Image *img, int start_x, int start_y, int width, int he
     
     append_to_buffer(buffer, 'X');
     
+    // Calcular divisões (respeitando pixels inteiros)
     int left_width = (width + 1) / 2;
     int right_width = width - left_width;
     int top_height = (height + 1) / 2;
     int bottom_height = height - top_height;
     
+    // ORDEM CORRIGIDA conforme o PDF:
+    // 1º Quadrante: superior esquerdo
     if (top_height > 0 && left_width > 0) {
         encode_region(img, start_x, start_y, left_width, top_height, buffer);
     }
     
+    // 2º Quadrante: superior direito  
     if (top_height > 0 && right_width > 0) {
         encode_region(img, start_x + left_width, start_y, right_width, top_height, buffer);
     }
     
+    // 3º Quadrante: inferior esquerdo
     if (bottom_height > 0 && left_width > 0) {
         encode_region(img, start_x, start_y + top_height, left_width, bottom_height, buffer);
     }
     
+    // 4º Quadrante: inferior direito
     if (bottom_height > 0 && right_width > 0) {
         encode_region(img, start_x + left_width, start_y + top_height, right_width, bottom_height, buffer);
     }
@@ -163,24 +169,20 @@ int main() {
     Image *image = read_manual_input();
     
     if (!image) {
-        printf("Erro: Nao foi possivel carregar a imagem\n");
-        system("pause");
+        printf("Erro: Não foi possível carregar a imagem\n");
         return 1;
     }
     
     char *code = encode_image(image);
     if (code) {
-        printf("\n✅ CODIGO GERADO: %s\n", code);
+        printf("\n CODIGO GERADO: %s\n", code);
         free(code);
     } else {
-        printf("\n❌ Erro na codificacao\n");
+        printf("\n Erro na codificação\n");
     }
     
     free_image(image);
     
-    printf("\nPressione Enter para sair...");
-    getchar();
-    getchar();
-    
+    printf("\nPrograma finalizado!\n");
     return 0;
 }
